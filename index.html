@@ -17,12 +17,16 @@
             <div class="video-section">
                 <h2>Live Proctoring Feed</h2>
                 <div class="video-container">
-                    <video id="webcam" autoplay playsinline></video>
-                    <canvas id="outputCanvas"></canvas>
-                    <div id="cameraPlaceholder" class="camera-placeholder">
-                        <div class="placeholder-icon">📷</div>
-                        <p>Camera feed will appear here</p>
-                        <p class="placeholder-subtitle">Click "Start Exam" to begin monitoring</p>
+                    <div id="cameraFeed" class="camera-feed">
+                        <div class="camera-placeholder active" id="cameraPlaceholder">
+                            <div class="placeholder-icon">📷</div>
+                            <p>Camera simulation active</p>
+                            <p class="placeholder-subtitle">Running in demo mode on GitHub</p>
+                        </div>
+                        <div id="liveIndicator" class="live-indicator">
+                            <span class="live-dot"></span>
+                            LIVE
+                        </div>
                     </div>
                 </div>
                 <div class="controls">
@@ -53,8 +57,8 @@
                         <span id="violationCount" class="violation-count">0</span>
                     </div>
                     <div class="status-item">
-                        <span class="status-label">Face Detection:</span>
-                        <span id="faceStatus" class="status-normal">No face</span>
+                        <span class="status-label">Detection Mode:</span>
+                        <span id="detectionMode" class="status-warning">Simulation</span>
                     </div>
                     <div class="status-item">
                         <span class="status-label">Current Alerts:</span>
@@ -76,71 +80,60 @@
                             <span id="multipleFacesStat" class="stat-value">0</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-label">Eye Closure:</span>
-                            <span id="eyeClosureStat" class="stat-value">0%</span>
+                            <span class="stat-label">Phone Usage:</span>
+                            <span id="phoneUsageStat" class="stat-value">0</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
+        <div class="demo-notice">
+            <div class="notice-header">
+                <span class="notice-icon">ℹ️</span>
+                <h3>Demo Mode Active</h3>
+            </div>
+            <p>This is a simulation running on GitHub Pages. In a production environment, this system would include:</p>
+            <ul>
+                <li>Real camera feed processing</li>
+                <li>AI-powered face detection</li>
+                <li>Advanced gaze tracking</li>
+                <li>Live video analytics</li>
+            </ul>
+        </div>
+
         <div class="features">
-            <h3>🔍 Active Monitoring Features:</h3>
+            <h3>🔍 Monitoring Features (Simulated):</h3>
             <div class="features-grid">
                 <div class="feature-item">
                     <span class="feature-icon">👥</span>
                     <div>
                         <strong>Multiple Face Detection</strong>
-                        <p>Detects additional persons in frame</p>
+                        <p>Simulates detection of additional persons</p>
                     </div>
                 </div>
                 <div class="feature-item">
                     <span class="feature-icon">👀</span>
                     <div>
                         <strong>Gaze Tracking</strong>
-                        <p>Monitors if you're looking away</p>
+                        <p>Simulates looking away detection</p>
                     </div>
                 </div>
                 <div class="feature-item">
                     <span class="feature-icon">📱</span>
                     <div>
                         <strong>Phone Detection</strong>
-                        <p>Alerts for potential phone usage</p>
+                        <p>Simulates phone usage alerts</p>
                     </div>
                 </div>
                 <div class="feature-item">
                     <span class="feature-icon">😴</span>
                     <div>
-                        <strong>Eye Closure Monitoring</strong>
-                        <p>Detects prolonged eye closure</p>
-                    </div>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">🎤</span>
-                    <div>
-                        <strong>Audio Monitoring</strong>
-                        <p>Listens for unauthorized sounds</p>
-                    </div>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">⚡</span>
-                    <div>
-                        <strong>Real-time Alerts</strong>
-                        <p>Instant violation notifications</p>
+                        <strong>Attention Monitoring</strong>
+                        <p>Simulates attention span tracking</p>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div class="instructions">
-            <h3>📝 Instructions</h3>
-            <ol>
-                <li>Ensure good lighting and camera positioning</li>
-                <li>Keep your face clearly visible to the camera</li>
-                <li>Avoid looking away from the screen for extended periods</li>
-                <li>Do not use phones or other devices during the exam</li>
-                <li>Maintain a quiet environment</li>
-            </ol>
         </div>
     </div>
 
@@ -155,6 +148,9 @@
                 <p id="violationMessage"></p>
                 <div class="violation-severity">
                     Severity: <span id="violationSeverity" class="severity-medium">Medium</span>
+                </div>
+                <div class="violation-tip">
+                    <small>This is a simulation for demonstration purposes</small>
                 </div>
             </div>
             <div class="modal-footer">
