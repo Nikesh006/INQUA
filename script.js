@@ -4,18 +4,14 @@ class ExamProctoringSystem {
         this.violations = [];
         this.examStartTime = null;
         this.detectionInterval = null;
-        this.audioContext = null;
-        this.analyser = null;
-        this.microphone = null;
         
         // Detection state
         this.detectionState = {
-            faceDetected: false,
+            faceDetected: true,
             multipleFaces: false,
             lookingAway: false,
             phoneDetected: false,
-            eyesClosed: false,
-            audioDetected: false
+            attentionLow: false
         };
         
         // Statistics
@@ -24,11 +20,23 @@ class ExamProctoringSystem {
             multipleFaceCount: 0,
             gazeAwayCount: 0,
             phoneUsageCount: 0,
-            eyeClosureCount: 0,
-            audioViolationCount: 0
+            attentionBreachCount: 0
         };
         
         this.initializeEventListeners();
+        this.setupDemoMode();
+    }
+
+    setupDemoMode() {
+        // Show demo mode indicator
+        const detectionMode = document.getElementById('detectionMode');
+        if (detectionMode) {
+            detectionMode.textContent = 'Demo Mode';
+            detectionMode.className = 'status-warning';
+        }
+        
+        // Update instructions for demo
+        console.log('Running in GitHub Pages demo mode');
     }
 
     initializeEventListeners() {
@@ -49,18 +57,15 @@ class ExamProctoringSystem {
 
     async startExam() {
         try {
-            // Request camera access
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { width: 640, height: 480 },
-                audio: true 
-            });
+            // Update UI for demo mode
+            document.getElementById('cameraPlaceholder').innerHTML = `
+                <div class="placeholder-icon">🔍</div>
+                <p>Proctoring Simulation Active</p>
+                <p class="placeholder-subtitle">Detecting simulated behaviors...</p>
+            `;
             
-            // Setup video element
-            const video = document.getElementById('webcam');
-            video.srcObject = stream;
-            
-            // Hide placeholder
-            document.getElementById('cameraPlaceholder').style.display = 'none';
+            // Show live indicator
+            document.getElementById('liveIndicator').style.display = 'flex';
             
             // Update UI
             document.getElementById('startBtn').disabled = true;
@@ -75,41 +80,37 @@ class ExamProctoringSystem {
             // Start detection loop
             this.startDetection();
             
-            // Start audio monitoring
-            this.startAudioMonitoring(stream);
-            
-            // Update dashboard if on dashboard page
+            // Update dashboard
             this.updateDashboard();
             
-            console.log('Exam proctoring started');
+            console.log('Exam proctoring simulation started');
+            
+            // Show demo notification
+            this.showDemoNotification();
             
         } catch (error) {
             console.error('Error starting exam:', error);
-            alert('Could not access camera. Please ensure you have granted camera permissions.');
+            this.showError('Running in demo mode. Camera access not available on GitHub Pages.');
         }
     }
 
     stopExam() {
         this.isProctoring = false;
         
-        // Stop video stream
-        const video = document.getElementById('webcam');
-        const stream = video.srcObject;
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-        }
-        video.srcObject = null;
+        // Hide live indicator
+        document.getElementById('liveIndicator').style.display = 'none';
         
-        // Show placeholder
-        document.getElementById('cameraPlaceholder').style.display = 'flex';
+        // Reset camera placeholder
+        document.getElementById('cameraPlaceholder').innerHTML = `
+            <div class="placeholder-icon">📷</div>
+            <p>Camera simulation active</p>
+            <p class="placeholder-subtitle">Running in demo mode on GitHub</p>
+        `;
         
         // Stop detection
         if (this.detectionInterval) {
             clearInterval(this.detectionInterval);
         }
-        
-        // Stop audio monitoring
-        this.stopAudioMonitoring();
         
         // Update UI
         document.getElementById('startBtn').disabled = false;
@@ -127,7 +128,7 @@ class ExamProctoringSystem {
         this.detectionInterval = setInterval(() => {
             this.simulateDetection();
             this.updateUI();
-        }, 2000); // Check every 2 seconds
+        }, 3000); // Check every 3 seconds
     }
 
     simulateDetection() {
@@ -135,24 +136,30 @@ class ExamProctoringSystem {
 
         const random = Math.random();
         
-        // Simulate different types of violations
-        if (random < 0.05) { // 5% chance of multiple faces
-            this.triggerViolation('Multiple faces detected', 'medium');
+        // More realistic simulation with patterns
+        const timeSinceStart = (new Date() - this.examStartTime) / 1000 / 60; // minutes
+        
+        // Increase violation probability over time
+        const timeFactor = Math.min(timeSinceStart / 30, 1); // Max at 30 minutes
+        
+        // Simulate different types of violations with increasing probability
+        if (random < (0.03 + timeFactor * 0.04)) { // Multiple faces
+            this.triggerViolation('Multiple faces detected in frame', 'medium');
             this.stats.multipleFaceCount++;
             this.detectionState.multipleFaces = true;
         } else {
             this.detectionState.multipleFaces = false;
         }
         
-        if (random < 0.08) { // 8% chance of looking away
-            this.triggerViolation('Looking away from screen', 'low');
+        if (random < (0.06 + timeFactor * 0.05)) { // Looking away
+            this.triggerViolation('Student looking away from screen', 'low');
             this.stats.gazeAwayCount++;
             this.detectionState.lookingAway = true;
         } else {
             this.detectionState.lookingAway = false;
         }
         
-        if (random < 0.03) { // 3% chance of phone usage
+        if (random < (0.02 + timeFactor * 0.03)) { // Phone usage
             this.triggerViolation('Potential phone usage detected', 'high');
             this.stats.phoneUsageCount++;
             this.detectionState.phoneDetected = true;
@@ -160,15 +167,15 @@ class ExamProctoringSystem {
             this.detectionState.phoneDetected = false;
         }
         
-        if (random < 0.04) { // 4% chance of eye closure
-            this.triggerViolation('Prolonged eye closure', 'medium');
-            this.stats.eyeClosureCount++;
-            this.detectionState.eyesClosed = true;
+        if (random < (0.04 + timeFactor * 0.06)) { // Low attention
+            this.triggerViolation('Low attention span detected', 'medium');
+            this.stats.attentionBreachCount++;
+            this.detectionState.attentionLow = true;
         } else {
-            this.detectionState.eyesClosed = false;
+            this.detectionState.attentionLow = false;
         }
         
-        // Always detect face (simulated)
+        // Always detect face in simulation
         this.detectionState.faceDetected = true;
     }
 
@@ -182,13 +189,16 @@ class ExamProctoringSystem {
         this.violations.push(violation);
         this.stats.totalViolations++;
         
-        // Show violation modal for high severity
-        if (severity === 'high') {
+        // Show violation modal for medium/high severity
+        if (severity === 'high' || (severity === 'medium' && Math.random() > 0.5)) {
             this.showViolationModal(message, severity);
         }
         
         // Update localStorage for dashboard
         this.saveToLocalStorage();
+        
+        // Log violation
+        console.log(`Violation: ${message} (${severity})`);
     }
 
     showViolationModal(message, severity) {
@@ -202,67 +212,46 @@ class ExamProctoringSystem {
         document.getElementById('violationModal').style.display = 'none';
     }
 
-    async startAudioMonitoring(stream) {
-        try {
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            this.analyser = this.audioContext.createAnalyser();
-            this.microphone = this.audioContext.createMediaStreamSource(stream);
-            
-            this.microphone.connect(this.analyser);
-            this.analyser.fftSize = 256;
-            
-            this.monitorAudioLevel();
-        } catch (error) {
-            console.warn('Audio monitoring not available:', error);
-        }
+    showDemoNotification() {
+        // Create a subtle demo notification
+        const notification = document.createElement('div');
+        notification.className = 'demo-notification';
+        notification.innerHTML = `
+            <div class="notification-content">
+                <span class="notification-icon">🎮</span>
+                <span>Running in simulation mode</span>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Remove after 5 seconds
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
     }
 
-    monitorAudioLevel() {
-        if (!this.analyser) return;
+    showError(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-notification';
+        errorDiv.innerHTML = `
+            <div class="error-content">
+                <span class="error-icon">⚠️</span>
+                <span>${message}</span>
+            </div>
+        `;
         
-        const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+        document.body.appendChild(errorDiv);
         
-        const checkAudio = () => {
-            if (!this.isProctoring) return;
-            
-            this.analyser.getByteFrequencyData(dataArray);
-            const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-            
-            // Trigger violation if audio level is too high
-            if (average > 60) { // Threshold for loud noise
-                this.triggerViolation('Unusual audio activity detected', 'medium');
-                this.stats.audioViolationCount++;
-                this.detectionState.audioDetected = true;
-            } else {
-                this.detectionState.audioDetected = false;
-            }
-            
-            setTimeout(checkAudio, 1000);
-        };
-        
-        checkAudio();
-    }
-
-    stopAudioMonitoring() {
-        if (this.audioContext) {
-            this.audioContext.close();
-            this.audioContext = null;
-        }
+        // Remove after 5 seconds
+        setTimeout(() => {
+            errorDiv.remove();
+        }, 5000);
     }
 
     updateUI() {
         // Update violation count
         document.getElementById('violationCount').textContent = this.stats.totalViolations;
-        
-        // Update face status
-        const faceStatus = document.getElementById('faceStatus');
-        if (this.detectionState.faceDetected) {
-            faceStatus.textContent = 'Face detected';
-            faceStatus.className = 'status-normal';
-        } else {
-            faceStatus.textContent = 'No face';
-            faceStatus.className = 'status-warning';
-        }
         
         // Update alerts
         const alertsContainer = document.getElementById('currentAlerts');
@@ -270,7 +259,7 @@ class ExamProctoringSystem {
         
         if (recentViolations.length > 0) {
             alertsContainer.innerHTML = recentViolations.map(violation => 
-                `<div class="alert-item">
+                `<div class="alert-item severity-${violation.severity}">
                     [${violation.timestamp}] ${violation.message}
                 </div>`
             ).join('');
@@ -280,10 +269,9 @@ class ExamProctoringSystem {
         
         // Update detection statistics
         document.getElementById('lookingAwayStat').textContent = 
-            `${Math.round((this.stats.gazeAwayCount / this.stats.totalViolations) * 100) || 0}%`;
+            `${Math.round((this.stats.gazeAwayCount / Math.max(this.stats.totalViolations, 1)) * 100)}%`;
         document.getElementById('multipleFacesStat').textContent = this.stats.multipleFaceCount;
-        document.getElementById('eyeClosureStat').textContent = 
-            `${Math.round((this.stats.eyeClosureCount / this.stats.totalViolations) * 100) || 0}%`;
+        document.getElementById('phoneUsageStat').textContent = this.stats.phoneUsageCount;
         
         // Update system status if there are violations
         if (this.stats.totalViolations > 0) {
@@ -312,8 +300,8 @@ class ExamProctoringSystem {
         const riskLevelEl = document.getElementById('riskLevel');
         if (riskLevelEl) {
             let riskLevel = 'low';
-            if (this.stats.totalViolations > 5) riskLevel = 'high';
-            else if (this.stats.totalViolations > 2) riskLevel = 'medium';
+            if (this.stats.totalViolations > 8) riskLevel = 'high';
+            else if (this.stats.totalViolations > 3) riskLevel = 'medium';
             
             riskLevelEl.textContent = riskLevel.charAt(0).toUpperCase() + riskLevel.slice(1);
             riskLevelEl.className = `${riskLevel}-risk`;
@@ -322,7 +310,7 @@ class ExamProctoringSystem {
         // Update attention score
         const attentionScoreEl = document.getElementById('attentionScore');
         if (attentionScoreEl) {
-            const score = Math.max(0, 100 - (this.stats.totalViolations * 10));
+            const score = Math.max(0, 100 - (this.stats.totalViolations * 8));
             attentionScoreEl.textContent = `${score}%`;
         }
         
@@ -331,7 +319,7 @@ class ExamProctoringSystem {
         if (violationsListEl) {
             if (this.violations.length > 0) {
                 violationsListEl.innerHTML = this.violations.slice().reverse().map(violation => `
-                    <div class="violation-log-item">
+                    <div class="violation-log-item severity-${violation.severity}">
                         <span>${violation.timestamp}</span>
                         <span>${violation.message}</span>
                         <span class="severity-${violation.severity}">${violation.severity}</span>
@@ -357,8 +345,7 @@ class ExamProctoringSystem {
             'detailMultipleFaces': this.stats.multipleFaceCount,
             'detailGazeAway': this.stats.gazeAwayCount,
             'detailPhoneUsage': this.stats.phoneUsageCount,
-            'detailEyeClosure': this.stats.eyeClosureCount,
-            'detailAudio': this.stats.audioViolationCount
+            'detailAttention': this.stats.attentionBreachCount
         };
         
         Object.entries(details).forEach(([id, value]) => {
@@ -410,21 +397,110 @@ document.addEventListener('DOMContentLoaded', function() {
     window.proctoringSystem.loadFromLocalStorage();
     
     // Update dashboard immediately if on dashboard page
-    if (window.location.pathname.includes('dashboard.html')) {
+    if (window.location.pathname.includes('dashboard.html') || 
+        window.location.href.includes('dashboard')) {
         window.proctoringSystem.updateDashboard();
+        
+        // Set up periodic updates for dashboard
+        setInterval(() => {
+            window.proctoringSystem.updateDashboard();
+        }, 2000);
     }
 });
 
-// Handle page visibility changes
-document.addEventListener('visibilitychange', function() {
-    if (document.hidden && window.proctoringSystem.isProctoring) {
-        window.proctoringSystem.triggerViolation('Browser tab not active', 'high');
-    }
-});
+// Add CSS for new elements
+const additionalStyles = `
+.demo-notification, .error-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    z-index: 1000;
+    animation: slideInRight 0.3s ease;
+}
 
-// Handle window focus/blur
-window.addEventListener('blur', function() {
-    if (window.proctoringSystem.isProctoring) {
-        window.proctoringSystem.triggerViolation('Window not focused', 'medium');
-    }
-});
+.demo-notification {
+    background: #e3f2fd;
+    border-left: 4px solid #2196F3;
+    color: #1565C0;
+}
+
+.error-notification {
+    background: #ffebee;
+    border-left: 4px solid #f44336;
+    color: #c62828;
+}
+
+.notification-content, .error-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.live-indicator {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: rgba(244, 67, 54, 0.9);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 0.8em;
+    font-weight: bold;
+    display: none;
+    align-items: center;
+    gap: 5px;
+}
+
+.live-dot {
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+.alert-item.severity-high { border-left-color: #f44336; background: #ffebee; }
+.alert-item.severity-medium { border-left-color: #ff9800; background: #fff3e0; }
+.alert-item.severity-low { border-left-color: #2196F3; background: #e3f2fd; }
+
+.violation-log-item.severity-high { border-left-color: #f44336; }
+.violation-log-item.severity-medium { border-left-color: #ff9800; }
+.violation-log-item.severity-low { border-left-color: #2196F3; }
+
+.demo-notice {
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    padding: 20px;
+    border-radius: 10px;
+    margin: 20px 0;
+    border-left: 4px solid #2196F3;
+}
+
+.notice-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.notice-icon {
+    font-size: 1.5em;
+}
+`;
+
+// Inject additional styles
+const styleSheet = document.createElement('style');
+styleSheet.textContent = additionalStyles;
+document.head.appendChild(styleSheet);
