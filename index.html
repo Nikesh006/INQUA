@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Exam Proctoring System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎓 AI Exam Proctoring System</h1>
+            <p>Intelligent monitoring for online examinations</p>
+        </header>
+
+        <div class="main-content">
+            <div class="video-section">
+                <h2>Live Proctoring Feed</h2>
+                <div class="video-container">
+                    <video id="webcam" autoplay playsinline></video>
+                    <canvas id="outputCanvas"></canvas>
+                    <div id="cameraPlaceholder" class="camera-placeholder">
+                        <div class="placeholder-icon">📷</div>
+                        <p>Camera feed will appear here</p>
+                        <p class="placeholder-subtitle">Click "Start Exam" to begin monitoring</p>
+                    </div>
+                </div>
+                <div class="controls">
+                    <button id="startBtn" class="btn btn-primary">
+                        <span class="btn-icon">▶️</span>
+                        Start Exam
+                    </button>
+                    <button id="stopBtn" class="btn btn-secondary" disabled>
+                        <span class="btn-icon">⏹️</span>
+                        Stop Exam
+                    </button>
+                    <button id="dashboardBtn" class="btn btn-info">
+                        <span class="btn-icon">📊</span>
+                        View Dashboard
+                    </button>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <h2>Real-time Status</h2>
+                <div id="statusDisplay">
+                    <div class="status-item">
+                        <span class="status-label">System Status:</span>
+                        <span id="systemStatus" class="status-normal">Ready</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Violations Detected:</span>
+                        <span id="violationCount" class="violation-count">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Face Detection:</span>
+                        <span id="faceStatus" class="status-normal">No face</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Current Alerts:</span>
+                        <div id="currentAlerts" class="alerts-container">
+                            <div class="no-alerts">No alerts</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="detection-stats">
+                    <h3>Detection Statistics</h3>
+                    <div class="stats-grid">
+                        <div class="stat">
+                            <span class="stat-label">Looking Away:</span>
+                            <span id="lookingAwayStat" class="stat-value">0%</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Multiple Faces:</span>
+                            <span id="multipleFacesStat" class="stat-value">0</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Eye Closure:</span>
+                            <span id="eyeClosureStat" class="stat-value">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="features">
+            <h3>🔍 Active Monitoring Features:</h3>
+            <div class="features-grid">
+                <div class="feature-item">
+                    <span class="feature-icon">👥</span>
+                    <div>
+                        <strong>Multiple Face Detection</strong>
+                        <p>Detects additional persons in frame</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">👀</span>
+                    <div>
+                        <strong>Gaze Tracking</strong>
+                        <p>Monitors if you're looking away</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">📱</span>
+                    <div>
+                        <strong>Phone Detection</strong>
+                        <p>Alerts for potential phone usage</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">😴</span>
+                    <div>
+                        <strong>Eye Closure Monitoring</strong>
+                        <p>Detects prolonged eye closure</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">🎤</span>
+                    <div>
+                        <strong>Audio Monitoring</strong>
+                        <p>Listens for unauthorized sounds</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">⚡</span>
+                    <div>
+                        <strong>Real-time Alerts</strong>
+                        <p>Instant violation notifications</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h3>📝 Instructions</h3>
+            <ol>
+                <li>Ensure good lighting and camera positioning</li>
+                <li>Keep your face clearly visible to the camera</li>
+                <li>Avoid looking away from the screen for extended periods</li>
+                <li>Do not use phones or other devices during the exam</li>
+                <li>Maintain a quiet environment</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- Violation Alert Modal -->
+    <div id="violationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🚨 Violation Detected!</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="violationMessage"></p>
+                <div class="violation-severity">
+                    Severity: <span id="violationSeverity" class="severity-medium">Medium</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="acknowledgeBtn" class="btn btn-warning">Acknowledge</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
