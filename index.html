@@ -17,16 +17,28 @@
             <div class="video-section">
                 <h2>Live Proctoring Feed</h2>
                 <div class="video-container">
-                    <div id="cameraFeed" class="camera-feed">
-                        <div class="camera-placeholder active" id="cameraPlaceholder">
-                            <div class="placeholder-icon">📷</div>
-                            <p>Camera simulation active</p>
-                            <p class="placeholder-subtitle">Running in demo mode on GitHub</p>
-                        </div>
-                        <div id="liveIndicator" class="live-indicator">
-                            <span class="live-dot"></span>
-                            LIVE
-                        </div>
+                    <video id="webcam" autoplay playsinline muted></video>
+                    <canvas id="outputCanvas"></canvas>
+                    <div id="cameraPlaceholder" class="camera-placeholder active">
+                        <div class="placeholder-icon">📷</div>
+                        <p>Camera feed will appear here</p>
+                        <p class="placeholder-subtitle">Click "Start Exam" to begin monitoring</p>
+                    </div>
+                    <div id="liveIndicator" class="live-indicator">
+                        <span class="live-dot"></span>
+                        LIVE
+                    </div>
+                </div>
+                <div class="camera-controls">
+                    <div class="camera-options">
+                        <label>
+                            <input type="checkbox" id="enableCamera" checked>
+                            Enable Camera
+                        </label>
+                        <label>
+                            <input type="checkbox" id="enableAudio" checked>
+                            Enable Audio Monitoring
+                        </label>
                     </div>
                 </div>
                 <div class="controls">
@@ -57,8 +69,12 @@
                         <span id="violationCount" class="violation-count">0</span>
                     </div>
                     <div class="status-item">
-                        <span class="status-label">Detection Mode:</span>
-                        <span id="detectionMode" class="status-warning">Simulation</span>
+                        <span class="status-label">Camera Status:</span>
+                        <span id="cameraStatus" class="status-warning">Not Active</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Face Detection:</span>
+                        <span id="faceStatus" class="status-normal">Inactive</span>
                     </div>
                     <div class="status-item">
                         <span class="status-label">Current Alerts:</span>
@@ -83,56 +99,108 @@
                             <span class="stat-label">Phone Usage:</span>
                             <span id="phoneUsageStat" class="stat-value">0</span>
                         </div>
+                        <div class="stat">
+                            <span class="stat-label">Audio Events:</span>
+                            <span id="audioEventsStat" class="stat-value">0</span>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="demo-notice">
-            <div class="notice-header">
-                <span class="notice-icon">ℹ️</span>
-                <h3>Demo Mode Active</h3>
+        <div class="browser-support">
+            <div class="support-header">
+                <span class="support-icon">🌐</span>
+                <h3>Browser Compatibility</h3>
             </div>
-            <p>This is a simulation running on GitHub Pages. In a production environment, this system would include:</p>
+            <p>This system works on modern browsers with camera access:</p>
             <ul>
-                <li>Real camera feed processing</li>
-                <li>AI-powered face detection</li>
-                <li>Advanced gaze tracking</li>
-                <li>Live video analytics</li>
+                <li>✅ Chrome 53+</li>
+                <li>✅ Firefox 36+</li>
+                <li>✅ Safari 11+</li>
+                <li>✅ Edge 79+</li>
             </ul>
+            <p class="support-note">Ensure you're using HTTPS and have granted camera permissions.</p>
         </div>
 
         <div class="features">
-            <h3>🔍 Monitoring Features (Simulated):</h3>
+            <h3>🔍 Active Monitoring Features:</h3>
             <div class="features-grid">
                 <div class="feature-item">
                     <span class="feature-icon">👥</span>
                     <div>
-                        <strong>Multiple Face Detection</strong>
-                        <p>Simulates detection of additional persons</p>
+                        <strong>Real Face Detection</strong>
+                        <p>Actual camera-based face detection</p>
                     </div>
                 </div>
                 <div class="feature-item">
                     <span class="feature-icon">👀</span>
                     <div>
                         <strong>Gaze Tracking</strong>
-                        <p>Simulates looking away detection</p>
+                        <p>Monitors if you're looking away</p>
                     </div>
                 </div>
                 <div class="feature-item">
                     <span class="feature-icon">📱</span>
                     <div>
                         <strong>Phone Detection</strong>
-                        <p>Simulates phone usage alerts</p>
+                        <p>Alerts for potential phone usage</p>
                     </div>
                 </div>
                 <div class="feature-item">
-                    <span class="feature-icon">😴</span>
+                    <span class="feature-icon">🎤</span>
                     <div>
-                        <strong>Attention Monitoring</strong>
-                        <p>Simulates attention span tracking</p>
+                        <strong>Audio Monitoring</strong>
+                        <p>Real-time audio level monitoring</p>
                     </div>
                 </div>
+                <div class="feature-item">
+                    <span class="feature-icon">⚡</span>
+                    <div>
+                        <strong>Real-time Alerts</strong>
+                        <p>Instant violation notifications</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">🔒</span>
+                    <div>
+                        <strong>Privacy Focused</strong>
+                        <p>All processing happens in your browser</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Permission Modal -->
+    <div id="permissionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📷 Camera Access Required</h2>
+            </div>
+            <div class="modal-body">
+                <p>This proctoring system requires camera access to function properly.</p>
+                <div class="permission-steps">
+                    <div class="step">
+                        <span class="step-number">1</span>
+                        <span>Click "Allow" when prompted for camera access</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">2</span>
+                        <span>Ensure good lighting and camera positioning</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">3</span>
+                        <span>Keep your face visible to the camera</span>
+                    </div>
+                </div>
+                <div class="camera-preview" id="cameraPreview">
+                    <div class="preview-placeholder">Camera feed will appear here</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="grantPermissionBtn" class="btn btn-primary">Grant Camera Access</button>
+                <button id="useDemoBtn" class="btn btn-secondary">Use Demo Mode</button>
             </div>
         </div>
     </div>
@@ -149,8 +217,8 @@
                 <div class="violation-severity">
                     Severity: <span id="violationSeverity" class="severity-medium">Medium</span>
                 </div>
-                <div class="violation-tip">
-                    <small>This is a simulation for demonstration purposes</small>
+                <div class="violation-time">
+                    Time: <span id="violationTime"></span>
                 </div>
             </div>
             <div class="modal-footer">
@@ -159,6 +227,8 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@0.0.1/dist/face-landmarks-detection.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
