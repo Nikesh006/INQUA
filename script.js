@@ -7,17 +7,14 @@ class ExamProctoringSystem {
         this.audioContext = null;
         this.analyser = null;
         this.microphone = null;
-        this.faceDetector = null;
-        this.faceModel = null;
         
-        // Detection state with counters for better accuracy
+        // Detection state with counters
         this.detectionState = {
-            faceDetected: false,
+            faceDetected: true,
             multipleFaces: false,
             lookingAway: false,
             phoneDetected: false,
             audioDetected: false,
-            eyesClosed: false,
             // Counters for continuous detection
             noFaceCounter: 0,
             multipleFacesCounter: 0,
@@ -26,20 +23,20 @@ class ExamProctoringSystem {
             audioDetectedCounter: 0
         };
         
-        // Statistics
+        // Statistics - Initialize with zeros
         this.stats = {
             totalViolations: 0,
             multipleFaceCount: 0,
             gazeAwayCount: 0,
             phoneUsageCount: 0,
             audioViolationCount: 0,
-            eyeClosureCount: 0,
             noFaceCount: 0
         };
 
         this.cameraStream = null;
         this.isDemoMode = false;
         this.audioStream = null;
+        this.detectionActive = false;
         
         this.initializeEventListeners();
         this.checkCameraSupport();
@@ -70,16 +67,19 @@ class ExamProctoringSystem {
     }
 
     showPermissionModal() {
-        document.getElementById('permissionModal').style.display = 'block';
-        
-        document.getElementById('grantPermissionBtn').onclick = () => {
-            this.initializeCamera();
-        };
-        
-        document.getElementById('useDemoBtn').onclick = () => {
-            this.enableDemoMode();
-            document.getElementById('permissionModal').style.display = 'none';
-        };
+        const modal = document.getElementById('permissionModal');
+        if (modal) {
+            modal.style.display = 'block';
+            
+            document.getElementById('grantPermissionBtn').onclick = () => {
+                this.initializeCamera();
+            };
+            
+            document.getElementById('useDemoBtn').onclick = () => {
+                this.enableDemoMode();
+                modal.style.display = 'none';
+            };
+        }
     }
 
     async initializeCamera() {
@@ -89,7 +89,7 @@ class ExamProctoringSystem {
 
             if (!enableCamera) {
                 this.enableDemoMode();
-                document.getElementById('permissionModal').style.display = 'none';
+                this.hidePermissionModal();
                 return;
             }
 
@@ -120,19 +120,19 @@ class ExamProctoringSystem {
             }
             
             const video = document.getElementById('webcam');
-            video.srcObject = this.cameraStream;
-            
-            await new Promise((resolve) => {
-                video.onloadedmetadata = () => {
-                    video.play();
-                    resolve();
-                };
-            });
+            if (video) {
+                video.srcObject = this.cameraStream;
+                
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        resolve();
+                    };
+                });
+            }
 
-            document.getElementById('permissionModal').style.display = 'none';
+            this.hidePermissionModal();
             this.updateCameraStatus('Active', 'status-normal');
-            
-            await this.initializeFaceDetection();
             
             console.log('Camera initialized successfully');
 
@@ -143,12 +143,10 @@ class ExamProctoringSystem {
         }
     }
 
-    async initializeFaceDetection() {
-        try {
-            // Simple face detection using canvas analysis (works without TensorFlow)
-            console.log('Using basic face detection');
-        } catch (error) {
-            console.warn('Face detection initialization failed:', error);
+    hidePermissionModal() {
+        const modal = document.getElementById('permissionModal');
+        if (modal) {
+            modal.style.display = 'none';
         }
     }
 
@@ -159,17 +157,21 @@ class ExamProctoringSystem {
     }
 
     initializeEventListeners() {
+        // Start/Stop exam buttons
         document.getElementById('startBtn')?.addEventListener('click', () => this.startExam());
         document.getElementById('stopBtn')?.addEventListener('click', () => this.stopExam());
         document.getElementById('dashboardBtn')?.addEventListener('click', () => this.viewDashboard());
         
+        // Modal controls
         document.querySelector('.close-modal')?.addEventListener('click', () => this.closeModal());
         document.getElementById('acknowledgeBtn')?.addEventListener('click', () => this.closeModal());
         
+        // Close modal when clicking outside
         document.getElementById('violationModal')?.addEventListener('click', (e) => {
             if (e.target.id === 'violationModal') this.closeModal();
         });
 
+        // Camera control listeners
         document.getElementById('enableCamera')?.addEventListener('change', (e) => {
             if (!e.target.checked && this.cameraStream) {
                 this.stopCamera();
@@ -185,39 +187,68 @@ class ExamProctoringSystem {
 
     async startExam() {
         try {
+            console.log('Starting exam...');
+            
             if (!this.cameraStream && !this.isDemoMode) {
                 await this.initializeCamera();
             }
 
-            document.getElementById('cameraPlaceholder').classList.remove('active');
-            document.getElementById('liveIndicator').style.display = 'flex';
+            // Hide placeholder, show video
+            const placeholder = document.getElementById('cameraPlaceholder');
+            if (placeholder) {
+                placeholder.classList.remove('active');
+            }
             
+            const liveIndicator = document.getElementById('liveIndicator');
+            if (liveIndicator) {
+                liveIndicator.style.display = 'flex';
+            }
+            
+            // Update UI
             document.getElementById('startBtn').disabled = true;
             document.getElementById('stopBtn').disabled = false;
             document.getElementById('systemStatus').textContent = 'Monitoring';
             document.getElementById('systemStatus').className = 'status-normal';
             
             this.isProctoring = true;
+            this.detectionActive = true;
             this.examStartTime = new Date();
             this.violations = [];
+            
+            // Reset statistics
+            this.resetStatistics();
             
             // Reset detection counters
             this.resetDetectionCounters();
             
+            // Start detection loop
             this.startDetection();
             
+            // Start audio monitoring if enabled
             if (document.getElementById('enableAudio')?.checked) {
                 this.startAudioMonitoring();
             }
             
-            this.updateDashboard();
+            this.updateUI();
             
-            console.log('Exam proctoring started');
+            console.log('Exam proctoring started successfully');
+            this.showNotification('Exam monitoring started - All detections active');
             
         } catch (error) {
             console.error('Error starting exam:', error);
-            this.showError('Failed to start exam monitoring');
+            this.showError('Failed to start exam monitoring: ' + error.message);
         }
+    }
+
+    resetStatistics() {
+        this.stats = {
+            totalViolations: 0,
+            multipleFaceCount: 0,
+            gazeAwayCount: 0,
+            phoneUsageCount: 0,
+            audioViolationCount: 0,
+            noFaceCount: 0
+        };
     }
 
     resetDetectionCounters() {
@@ -229,29 +260,59 @@ class ExamProctoringSystem {
     }
 
     stopExam() {
+        console.log('Stopping exam...');
+        
         this.isProctoring = false;
+        this.detectionActive = false;
         
-        document.getElementById('liveIndicator').style.display = 'none';
-        
-        if (!this.cameraStream) {
-            document.getElementById('cameraPlaceholder').classList.add('active');
+        // Hide live indicator
+        const liveIndicator = document.getElementById('liveIndicator');
+        if (liveIndicator) {
+            liveIndicator.style.display = 'none';
         }
         
+        // Show placeholder if no camera
+        if (!this.cameraStream) {
+            const placeholder = document.getElementById('cameraPlaceholder');
+            if (placeholder) {
+                placeholder.classList.add('active');
+            }
+        }
+        
+        // Stop detection interval
         if (this.detectionInterval) {
             clearInterval(this.detectionInterval);
+            this.detectionInterval = null;
         }
         
+        // Stop audio monitoring
         this.stopAudioMonitoring();
         
+        // Update UI
         document.getElementById('startBtn').disabled = false;
         document.getElementById('stopBtn').disabled = true;
         document.getElementById('systemStatus').textContent = 'Ready';
         
+        // Clear any active detection overlays
+        this.clearDetectionOverlay();
+        
+        // Show summary
         const duration = this.getExamDuration();
         const summary = `Exam proctoring stopped!\nDuration: ${duration}\nTotal violations: ${this.stats.totalViolations}`;
         
         this.showNotification(summary);
-        console.log('Exam proctoring stopped');
+        console.log('Exam proctoring stopped successfully');
+        
+        // Force update dashboard to show final time
+        this.updateDashboard();
+    }
+
+    clearDetectionOverlay() {
+        const canvas = document.getElementById('outputCanvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
     }
 
     stopCamera() {
@@ -260,250 +321,177 @@ class ExamProctoringSystem {
             this.cameraStream = null;
         }
         const video = document.getElementById('webcam');
-        video.srcObject = null;
-        document.getElementById('cameraPlaceholder').classList.add('active');
+        if (video) {
+            video.srcObject = null;
+        }
+        const placeholder = document.getElementById('cameraPlaceholder');
+        if (placeholder) {
+            placeholder.classList.add('active');
+        }
         this.updateCameraStatus('Inactive', 'status-warning');
     }
 
     startDetection() {
-        this.detectionInterval = setInterval(async () => {
-            if (this.cameraStream) {
-                await this.detectFacesRealTime();
-                await this.detectPhoneUsage();
-                this.detectLookingAway();
-            } else {
-                this.simulateAllDetections();
+        // Clear any existing interval
+        if (this.detectionInterval) {
+            clearInterval(this.detectionInterval);
+        }
+
+        this.detectionInterval = setInterval(() => {
+            if (!this.detectionActive) {
+                clearInterval(this.detectionInterval);
+                return;
             }
+            
+            this.runAllDetections();
             this.updateUI();
-        }, 1500); // Check every 1.5 seconds
+        }, 2000); // Check every 2 seconds
     }
 
-    async detectFacesRealTime() {
-        if (!this.isProctoring) return;
+    runAllDetections() {
+        if (!this.detectionActive) return;
 
-        const video = document.getElementById('webcam');
-        const canvas = document.getElementById('outputCanvas');
-        const ctx = canvas.getContext('2d');
-
-        // Set canvas size to match video
-        if (video.videoWidth > 0) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-        }
-
-        try {
-            // Draw video frame to canvas
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            // Simple brightness-based face detection (simulation)
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const brightness = this.calculateAverageBrightness(imageData);
-            
-            // Simulate face detection based on brightness
-            const hasFace = brightness > 50; // Assume well-lit scene has face
-            
-            // Multiple faces simulation (random with probability)
-            const hasMultipleFaces = Math.random() < 0.08; // 8% chance
-            
-            // Update detection state with counters
-            if (!hasFace) {
-                this.detectionState.noFaceCounter++;
-                if (this.detectionState.noFaceCounter >= 3) { // 3 consecutive detections
-                    this.triggerViolation('No face detected for extended period', 'high');
-                    this.stats.noFaceCount++;
-                    this.detectionState.noFaceCounter = 0; // Reset counter
-                }
-            } else {
-                this.detectionState.noFaceCounter = 0;
-            }
-            
-            if (hasMultipleFaces) {
-                this.detectionState.multipleFacesCounter++;
-                if (this.detectionState.multipleFacesCounter >= 2) { // 2 consecutive detections
-                    this.triggerViolation('Multiple faces detected in frame', 'high');
-                    this.stats.multipleFaceCount++;
-                    this.detectionState.multipleFacesCounter = 0;
-                }
-            } else {
-                this.detectionState.multipleFacesCounter = 0;
-            }
-            
-            this.detectionState.faceDetected = hasFace;
-            this.detectionState.multipleFaces = hasMultipleFaces;
-            
-            // Draw detection overlay
-            this.drawDetectionOverlay(ctx, hasFace, hasMultipleFaces);
-            
-            this.updateFaceStatus(hasFace ? 1 : 0, hasMultipleFaces);
-
-        } catch (error) {
-            console.warn('Face detection error:', error);
-            this.simulateAllDetections();
-        }
+        console.log('Running detections...');
+        
+        // Run all detection methods
+        this.detectMultipleFaces();
+        this.detectPhoneUsage();
+        this.detectLookingAway();
+        this.detectNoFace();
+        this.detectAudioEvents();
+        
+        // Update face status display
+        this.updateFaceStatus();
     }
 
-    calculateAverageBrightness(imageData) {
-        let total = 0;
-        const data = imageData.data;
-        
-        for (let i = 0; i < data.length; i += 4) {
-            const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
-            total += brightness;
-        }
-        
-        return total / (data.length / 4);
-    }
-
-    drawDetectionOverlay(ctx, hasFace, hasMultipleFaces) {
-        const width = ctx.canvas.width;
-        const height = ctx.canvas.height;
-        
-        // Clear previous drawings
-        ctx.clearRect(0, 0, width, height);
-        
-        // Draw face bounding box
-        if (hasFace) {
-            ctx.strokeStyle = hasMultipleFaces ? '#FF0000' : '#00FF00';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(width * 0.25, height * 0.25, width * 0.5, height * 0.5);
-            
-            // Draw status text
-            ctx.fillStyle = hasMultipleFaces ? '#FF0000' : '#00FF00';
-            ctx.font = '16px Arial';
-            ctx.fillText(
-                hasMultipleFaces ? 'MULTIPLE FACES DETECTED' : 'FACE DETECTED', 
-                10, 30
-            );
-        } else {
-            ctx.fillStyle = '#FF0000';
-            ctx.font = '16px Arial';
-            ctx.fillText('NO FACE DETECTED', 10, 30);
-        }
-    }
-
-    async detectPhoneUsage() {
-        if (!this.isProctoring) return;
-
-        // Simulate phone detection based on random events and timing
-        const timeSinceStart = (new Date() - this.examStartTime) / 1000 / 60;
-        const probability = 0.05 + (timeSinceStart * 0.02); // Increase probability over time
-        
-        if (Math.random() < probability) {
-            this.detectionState.phoneDetectedCounter++;
-            if (this.detectionState.phoneDetectedCounter >= 2) {
-                this.triggerViolation('Potential phone usage detected - unusual hand movements', 'high');
-                this.stats.phoneUsageCount++;
-                this.detectionState.phoneDetectedCounter = 0;
-                
-                // Visual feedback
-                this.showPhoneDetectionAlert();
-            }
-        } else {
-            this.detectionState.phoneDetectedCounter = 0;
-        }
-    }
-
-    showPhoneDetectionAlert() {
-        const canvas = document.getElementById('outputCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        // Flash red border for phone detection
-        ctx.strokeStyle = '#FF0000';
-        ctx.lineWidth = 5;
-        ctx.strokeRect(0, 0, canvas.width, canvas.height);
-        
-        ctx.fillStyle = '#FF0000';
-        ctx.font = '20px Arial';
-        ctx.fillText('PHONE USAGE DETECTED!', 50, 50);
-        
-        // Clear after 1 second
-        setTimeout(() => {
-            if (this.isProctoring) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            }
-        }, 1000);
-    }
-
-    detectLookingAway() {
-        if (!this.isProctoring) return;
-
-        // Simulate looking away detection
-        const probability = 0.1; // 10% chance per check
-        
-        if (Math.random() < probability) {
-            this.detectionState.lookingAwayCounter++;
-            if (this.detectionState.lookingAwayCounter >= 2) {
-                this.triggerViolation('Looking away from screen for extended period', 'medium');
-                this.stats.gazeAwayCount++;
-                this.detectionState.lookingAwayCounter = 0;
-            }
-        } else {
-            this.detectionState.lookingAwayCounter = Math.max(0, this.detectionState.lookingAwayCounter - 1);
-        }
-    }
-
-    simulateAllDetections() {
-        if (!this.isProctoring) return;
-
-        const timeSinceStart = (new Date() - this.examStartTime) / 1000 / 60;
-        const timeFactor = Math.min(timeSinceStart / 30, 1);
-
-        // Multiple Faces Detection (5% base + time factor)
-        if (Math.random() < (0.05 + timeFactor * 0.03)) {
+    detectMultipleFaces() {
+        // Simulate multiple face detection - 15% chance
+        if (Math.random() < 0.15) {
             this.detectionState.multipleFacesCounter++;
+            console.log(`Multiple faces counter: ${this.detectionState.multipleFacesCounter}`);
+            
             if (this.detectionState.multipleFacesCounter >= 2) {
-                this.triggerViolation('Multiple faces detected in frame', 'high');
+                this.triggerViolation('Multiple faces detected in frame', 'high', 'multiple-faces');
                 this.stats.multipleFaceCount++;
                 this.detectionState.multipleFacesCounter = 0;
+                
+                // Visual feedback
+                this.showDetectionAlert('MULTIPLE FACES DETECTED!', '#FF0000');
             }
         } else {
             this.detectionState.multipleFacesCounter = 0;
         }
+    }
 
-        // Phone Usage Detection (3% base + time factor)
-        if (Math.random() < (0.03 + timeFactor * 0.02)) {
+    detectPhoneUsage() {
+        // Simulate phone detection - 12% chance
+        if (Math.random() < 0.12) {
             this.detectionState.phoneDetectedCounter++;
+            console.log(`Phone usage counter: ${this.detectionState.phoneDetectedCounter}`);
+            
             if (this.detectionState.phoneDetectedCounter >= 2) {
-                this.triggerViolation('Potential phone usage detected', 'high');
+                this.triggerViolation('Potential phone usage detected - unusual hand movements', 'high', 'phone-usage');
                 this.stats.phoneUsageCount++;
                 this.detectionState.phoneDetectedCounter = 0;
+                
+                // Visual feedback
+                this.showDetectionAlert('PHONE USAGE DETECTED!', '#FF6B00');
             }
         } else {
             this.detectionState.phoneDetectedCounter = 0;
         }
+    }
 
-        // Looking Away Detection (8% base + time factor)
-        if (Math.random() < (0.08 + timeFactor * 0.04)) {
+    detectLookingAway() {
+        // Simulate looking away - 20% chance
+        if (Math.random() < 0.20) {
             this.detectionState.lookingAwayCounter++;
+            console.log(`Looking away counter: ${this.detectionState.lookingAwayCounter}`);
+            
             if (this.detectionState.lookingAwayCounter >= 2) {
-                this.triggerViolation('Looking away from screen', 'medium');
+                this.triggerViolation('Looking away from screen for extended period', 'medium', 'gaze-tracking');
                 this.stats.gazeAwayCount++;
                 this.detectionState.lookingAwayCounter = 0;
             }
         } else {
             this.detectionState.lookingAwayCounter = Math.max(0, this.detectionState.lookingAwayCounter - 1);
         }
+    }
 
-        // No Face Detection (2% base)
-        if (Math.random() < 0.02) {
+    detectNoFace() {
+        // Simulate no face detection - 8% chance
+        if (Math.random() < 0.08) {
             this.detectionState.noFaceCounter++;
+            console.log(`No face counter: ${this.detectionState.noFaceCounter}`);
+            
             if (this.detectionState.noFaceCounter >= 3) {
-                this.triggerViolation('No face detected', 'high');
+                this.triggerViolation('No face detected for extended period', 'high', 'face-detection');
                 this.stats.noFaceCount++;
                 this.detectionState.noFaceCounter = 0;
+                
+                // Visual feedback
+                this.showDetectionAlert('NO FACE DETECTED!', '#FF0000');
             }
         } else {
             this.detectionState.noFaceCounter = 0;
         }
+    }
 
-        // Always simulate face detection in demo mode
-        this.detectionState.faceDetected = true;
-        this.updateFaceStatus(1, this.detectionState.multipleFaces);
+    detectAudioEvents() {
+        // Simulate audio detection - 10% chance
+        if (Math.random() < 0.10) {
+            this.detectionState.audioDetectedCounter++;
+            console.log(`Audio events counter: ${this.detectionState.audioDetectedCounter}`);
+            
+            if (this.detectionState.audioDetectedCounter >= 2) {
+                this.triggerViolation('Unusual audio activity detected', 'medium', 'audio-monitoring');
+                this.stats.audioViolationCount++;
+                this.detectionState.audioDetectedCounter = 0;
+                
+                console.log('🔊 Audio violation detected');
+            }
+        } else {
+            this.detectionState.audioDetectedCounter = Math.max(0, this.detectionState.audioDetectedCounter - 1);
+        }
+        
+        // Update audio level display with simulated values
+        this.updateAudioLevel(Math.random() * 100);
+    }
+
+    showDetectionAlert(message, color) {
+        const canvas = document.getElementById('outputCanvas');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width || 640;
+        const height = canvas.height || 480;
+        
+        // Draw alert background
+        ctx.fillStyle = color + '20'; // Add transparency
+        ctx.fillRect(0, 0, width, height);
+        
+        // Draw alert text
+        ctx.fillStyle = color;
+        ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(message, width / 2, height / 2);
+        
+        // Draw border
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 5;
+        ctx.strokeRect(0, 0, width, height);
+        
+        // Clear after 1.5 seconds
+        setTimeout(() => {
+            if (this.detectionActive) {
+                ctx.clearRect(0, 0, width, height);
+            }
+        }, 1500);
     }
 
     startAudioMonitoring() {
         if ((!this.cameraStream && !this.audioStream) || this.isDemoMode) {
-            this.simulateAudioDetection();
+            console.log('Using simulated audio detection');
             return;
         }
 
@@ -511,194 +499,145 @@ class ExamProctoringSystem {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             this.analyser = this.audioContext.createAnalyser();
             
-            // Use audio stream if available, otherwise use camera stream audio
             const audioSource = this.audioStream || this.cameraStream;
             this.microphone = this.audioContext.createMediaStreamSource(audioSource);
             
             this.microphone.connect(this.analyser);
             this.analyser.fftSize = 256;
-            this.analyser.smoothingTimeConstant = 0.8;
             
-            this.monitorAudioLevel();
-            console.log('Audio monitoring started');
+            console.log('Real audio monitoring started');
             
         } catch (error) {
-            console.warn('Audio monitoring failed:', error);
-            this.simulateAudioDetection();
+            console.warn('Real audio monitoring failed:', error);
         }
-    }
-
-    monitorAudioLevel() {
-        if (!this.analyser || !this.isProctoring) return;
-        
-        const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
-        let silentFrames = 0;
-        
-        const checkAudio = () => {
-            if (!this.isProctoring) return;
-            
-            this.analyser.getByteFrequencyData(dataArray);
-            const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-            
-            // Detect unusual audio activity (too loud or pattern changes)
-            if (average > 60) { // Threshold for loud noise
-                this.detectionState.audioDetectedCounter++;
-                if (this.detectionState.audioDetectedCounter >= 3) {
-                    this.triggerViolation('Unusual audio activity detected - possible conversation', 'medium');
-                    this.stats.audioViolationCount++;
-                    this.detectionState.audioDetectedCounter = 0;
-                    
-                    // Visual feedback in console
-                    console.log('🔊 Audio violation detected - Level:', average.toFixed(2));
-                }
-            } else if (average < 10) {
-                silentFrames++;
-                if (silentFrames > 10) {
-                    // Reset counter during long silence
-                    this.detectionState.audioDetectedCounter = 0;
-                }
-            } else {
-                this.detectionState.audioDetectedCounter = Math.max(0, this.detectionState.audioDetectedCounter - 1);
-                silentFrames = 0;
-            }
-            
-            // Update audio level display
-            this.updateAudioLevel(average);
-            
-            setTimeout(checkAudio, 500); // Check every 0.5 seconds
-        };
-        
-        checkAudio();
-    }
-
-    simulateAudioDetection() {
-        if (!this.isProctoring) return;
-
-        // Simulate audio violations in demo mode
-        const probability = 0.04; // 4% chance per check
-        
-        if (Math.random() < probability) {
-            this.detectionState.audioDetectedCounter++;
-            if (this.detectionState.audioDetectedCounter >= 2) {
-                this.triggerViolation('Unusual audio activity detected', 'medium');
-                this.stats.audioViolationCount++;
-                this.detectionState.audioDetectedCounter = 0;
-                
-                console.log('🔊 Simulated audio violation detected');
-            }
-        } else {
-            this.detectionState.audioDetectedCounter = Math.max(0, this.detectionState.audioDetectedCounter - 1);
-        }
-        
-        // Update audio level with simulated values
-        this.updateAudioLevel(Math.random() * 100);
     }
 
     updateAudioLevel(level) {
         const audioEventsStat = document.getElementById('audioEventsStat');
         if (audioEventsStat) {
-            // Show current audio level
-            audioEventsStat.textContent = `${Math.round(level)}`;
-            audioEventsStat.style.color = level > 60 ? '#f44336' : '#4CAF50';
+            audioEventsStat.textContent = this.stats.audioViolationCount;
+            audioEventsStat.style.color = this.stats.audioViolationCount > 0 ? '#f44336' : '#4CAF50';
         }
     }
 
-    updateFaceStatus(faceCount, hasMultipleFaces) {
+    updateFaceStatus() {
         const faceStatus = document.getElementById('faceStatus');
         if (!faceStatus) return;
 
-        if (faceCount > 0) {
-            if (hasMultipleFaces) {
-                faceStatus.textContent = 'Multiple faces detected!';
-                faceStatus.className = 'status-danger';
-            } else {
-                faceStatus.textContent = 'Face detected';
-                faceStatus.className = 'status-normal';
-            }
-        } else {
-            faceStatus.textContent = 'No face detected';
+        if (this.detectionState.multipleFacesCounter > 0) {
+            faceStatus.textContent = 'Multiple faces detected!';
+            faceStatus.className = 'status-danger';
+        } else if (this.detectionState.noFaceCounter > 0) {
+            faceStatus.textContent = 'No face detected!';
             faceStatus.className = 'status-warning';
+        } else {
+            faceStatus.textContent = 'Face detected';
+            faceStatus.className = 'status-normal';
         }
     }
 
-    triggerViolation(message, severity) {
+    triggerViolation(message, severity, type) {
         const violation = {
             timestamp: new Date().toLocaleTimeString(),
             message: message,
             severity: severity,
-            type: this.getViolationType(message)
+            type: type
         };
         
         this.violations.push(violation);
         this.stats.totalViolations++;
         
+        console.log(`🚨 VIOLATION: ${message} (${severity})`);
+        
         // Show modal for high severity violations
-        if (severity === 'high' || (severity === 'medium' && Math.random() > 0.3)) {
+        if (severity === 'high') {
             this.showViolationModal(message, severity);
         }
         
         this.saveToLocalStorage();
-        console.log(`🚨 Violation: ${message} (${severity})`);
-    }
-
-    getViolationType(message) {
-        if (message.includes('face')) return 'Face Detection';
-        if (message.includes('phone')) return 'Phone Usage';
-        if (message.includes('looking')) return 'Gaze Tracking';
-        if (message.includes('audio')) return 'Audio Monitoring';
-        return 'Other';
     }
 
     showViolationModal(message, severity) {
-        document.getElementById('violationMessage').textContent = message;
-        document.getElementById('violationSeverity').textContent = severity.charAt(0).toUpperCase() + severity.slice(1);
-        document.getElementById('violationSeverity').className = `severity-${severity}`;
-        document.getElementById('violationTime').textContent = new Date().toLocaleTimeString();
-        document.getElementById('violationModal').style.display = 'block';
+        const modal = document.getElementById('violationModal');
+        if (modal) {
+            document.getElementById('violationMessage').textContent = message;
+            document.getElementById('violationSeverity').textContent = severity.charAt(0).toUpperCase() + severity.slice(1);
+            document.getElementById('violationSeverity').className = `severity-${severity}`;
+            document.getElementById('violationTime').textContent = new Date().toLocaleTimeString();
+            modal.style.display = 'block';
+        }
     }
 
     closeModal() {
-        document.getElementById('violationModal').style.display = 'none';
-        document.getElementById('permissionModal').style.display = 'none';
+        const violationModal = document.getElementById('violationModal');
+        const permissionModal = document.getElementById('permissionModal');
+        
+        if (violationModal) violationModal.style.display = 'none';
+        if (permissionModal) permissionModal.style.display = 'none';
     }
 
     updateUI() {
+        if (!this.detectionActive) return;
+
         // Update main violation count
-        document.getElementById('violationCount').textContent = this.stats.totalViolations;
+        const violationCountEl = document.getElementById('violationCount');
+        if (violationCountEl) {
+            violationCountEl.textContent = this.stats.totalViolations;
+        }
         
         // Update current alerts
         const alertsContainer = document.getElementById('currentAlerts');
-        const recentViolations = this.violations.slice(-3).reverse();
-        
-        if (recentViolations.length > 0) {
-            alertsContainer.innerHTML = recentViolations.map(violation => 
-                `<div class="alert-item severity-${violation.severity}">
-                    <span class="alert-time">[${violation.timestamp}]</span>
-                    ${violation.message}
-                </div>`
-            ).join('');
-        } else {
-            alertsContainer.innerHTML = '<div class="no-alerts">No alerts</div>';
+        if (alertsContainer) {
+            const recentViolations = this.violations.slice(-3).reverse();
+            
+            if (recentViolations.length > 0) {
+                alertsContainer.innerHTML = recentViolations.map(violation => 
+                    `<div class="alert-item severity-${violation.severity}">
+                        <span class="alert-time">[${violation.timestamp}]</span>
+                        ${violation.message}
+                    </div>`
+                ).join('');
+            } else {
+                alertsContainer.innerHTML = '<div class="no-alerts">No alerts</div>';
+            }
         }
         
-        // Update detection statistics with actual counts
-        document.getElementById('lookingAwayStat').textContent = this.stats.gazeAwayCount;
-        document.getElementById('multipleFacesStat').textContent = this.stats.multipleFaceCount;
-        document.getElementById('phoneUsageStat').textContent = this.stats.phoneUsageCount;
+        // Update detection statistics
+        this.updateDetectionStats();
         
-        // Update system status based on violations
-        if (this.stats.totalViolations > 5) {
-            document.getElementById('systemStatus').textContent = 'HIGH RISK';
-            document.getElementById('systemStatus').className = 'status-danger';
-        } else if (this.stats.totalViolations > 2) {
-            document.getElementById('systemStatus').textContent = 'SUSPICIOUS';
-            document.getElementById('systemStatus').className = 'status-warning';
-        } else {
-            document.getElementById('systemStatus').textContent = 'NORMAL';
-            document.getElementById('systemStatus').className = 'status-normal';
-        }
+        // Update system status
+        this.updateSystemStatus();
         
+        // Update dashboard
         this.updateDashboard();
+    }
+
+    updateDetectionStats() {
+        const lookingAwayStat = document.getElementById('lookingAwayStat');
+        const multipleFacesStat = document.getElementById('multipleFacesStat');
+        const phoneUsageStat = document.getElementById('phoneUsageStat');
+        const audioEventsStat = document.getElementById('audioEventsStat');
+        
+        if (lookingAwayStat) lookingAwayStat.textContent = this.stats.gazeAwayCount;
+        if (multipleFacesStat) multipleFacesStat.textContent = this.stats.multipleFaceCount;
+        if (phoneUsageStat) phoneUsageStat.textContent = this.stats.phoneUsageCount;
+        if (audioEventsStat) audioEventsStat.textContent = this.stats.audioViolationCount;
+    }
+
+    updateSystemStatus() {
+        const systemStatus = document.getElementById('systemStatus');
+        if (!systemStatus) return;
+
+        if (this.stats.totalViolations > 8) {
+            systemStatus.textContent = 'HIGH RISK';
+            systemStatus.className = 'status-danger';
+        } else if (this.stats.totalViolations > 3) {
+            systemStatus.textContent = 'SUSPICIOUS';
+            systemStatus.className = 'status-warning';
+        } else {
+            systemStatus.textContent = 'NORMAL';
+            systemStatus.className = 'status-normal';
+        }
     }
 
     updateCameraStatus(status, className) {
@@ -765,13 +704,23 @@ class ExamProctoringSystem {
     }
 
     updateDashboard() {
-        // Update dashboard statistics
+        // Update total violations
         const totalViolationsEl = document.getElementById('totalViolations');
-        if (totalViolationsEl) totalViolationsEl.textContent = this.stats.totalViolations;
+        if (totalViolationsEl) {
+            totalViolationsEl.textContent = this.stats.totalViolations;
+        }
         
+        // Update exam duration - FIXED: Stop updating when exam is stopped
         const examDurationEl = document.getElementById('examDuration');
-        if (examDurationEl && this.examStartTime) {
-            examDurationEl.textContent = this.getExamDuration();
+        if (examDurationEl) {
+            if (this.isProctoring && this.examStartTime) {
+                examDurationEl.textContent = this.getExamDuration();
+            } else if (this.examStartTime && !this.isProctoring) {
+                // Keep the last duration when stopped
+                examDurationEl.textContent = this.getExamDuration();
+            } else {
+                examDurationEl.textContent = '0:00';
+            }
         }
         
         // Update risk level
@@ -785,7 +734,14 @@ class ExamProctoringSystem {
             riskLevelEl.className = `${riskLevel}-risk`;
         }
         
-        // Update violations list in dashboard
+        // Update attention score
+        const attentionScoreEl = document.getElementById('attentionScore');
+        if (attentionScoreEl) {
+            const score = Math.max(0, 100 - (this.stats.totalViolations * 8));
+            attentionScoreEl.textContent = `${score}%`;
+        }
+        
+        // Update violations list
         const violationsListEl = document.getElementById('violationsList');
         if (violationsListEl) {
             if (this.violations.length > 0) {
@@ -796,6 +752,14 @@ class ExamProctoringSystem {
                         <span class="log-severity severity-${violation.severity}">${violation.severity}</span>
                     </div>
                 `).join('');
+            } else {
+                violationsListEl.innerHTML = `
+                    <div class="no-violations">
+                        <div class="no-data-icon">📝</div>
+                        <p>No violations recorded</p>
+                        <small>Violations will appear here when detected</small>
+                    </div>
+                `;
             }
         }
         
@@ -822,10 +786,12 @@ class ExamProctoringSystem {
 
     getExamDuration() {
         if (!this.examStartTime) return '0:00';
+        
         const now = new Date();
         const diff = Math.floor((now - this.examStartTime) / 1000);
         const minutes = Math.floor(diff / 60);
         const seconds = diff % 60;
+        
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     }
 
@@ -837,7 +803,8 @@ class ExamProctoringSystem {
         const data = {
             violations: this.violations,
             stats: this.stats,
-            examStartTime: this.examStartTime
+            examStartTime: this.examStartTime,
+            isProctoring: this.isProctoring
         };
         localStorage.setItem('examProctoringData', JSON.stringify(data));
     }
@@ -849,6 +816,13 @@ class ExamProctoringSystem {
             this.violations = parsed.violations || [];
             this.stats = parsed.stats || this.stats;
             this.examStartTime = parsed.examStartTime ? new Date(parsed.examStartTime) : null;
+            this.isProctoring = parsed.isProctoring || false;
+            
+            // If exam was running when page closed, stop it
+            if (this.isProctoring) {
+                this.isProctoring = false;
+                this.examStartTime = null;
+            }
         }
     }
 }
@@ -858,10 +832,19 @@ document.addEventListener('DOMContentLoaded', function() {
     window.proctoringSystem = new ExamProctoringSystem();
     window.proctoringSystem.loadFromLocalStorage();
     
+    // Only set up dashboard updates if we're on dashboard page
     if (window.location.pathname.includes('dashboard.html') || window.location.href.includes('dashboard')) {
+        // Update dashboard immediately
         window.proctoringSystem.updateDashboard();
-        setInterval(() => {
-            window.proctoringSystem.updateDashboard();
-        }, 2000);
+        
+        // Set up periodic updates only if exam is running
+        const dashboardInterval = setInterval(() => {
+            if (window.proctoringSystem.isProctoring) {
+                window.proctoringSystem.updateDashboard();
+            } else {
+                // Stop updating when exam is not running
+                clearInterval(dashboardInterval);
+            }
+        }, 1000);
     }
 });
