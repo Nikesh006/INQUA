@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proctoring Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Proctoring Dashboard</h1>
+            <a href="index.html" class="back-btn">← Back to Live Feed</a>
+        </header>
+
+        <div class="dashboard">
+            <div class="stats-cards">
+                <div class="stat-card">
+                    <div class="stat-icon">🚨</div>
+                    <h3>Total Violations</h3>
+                    <div id="totalViolations" class="stat-number">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⏱️</div>
+                    <h3>Exam Duration</h3>
+                    <div id="examDuration" class="stat-number">0:00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📈</div>
+                    <h3>Risk Level</h3>
+                    <div id="riskLevel" class="stat-value low-risk">Low</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">👁️</div>
+                    <h3>Attention Score</h3>
+                    <div id="attentionScore" class="stat-number">100%</div>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="violations-log">
+                    <h3>Violation Log</h3>
+                    <div class="log-header">
+                        <span>Time</span>
+                        <span>Violation</span>
+                        <span>Severity</span>
+                    </div>
+                    <div id="violationsList" class="log-container">
+                        <div class="no-violations">
+                            <div class="no-data-icon">📝</div>
+                            <p>No violations recorded</p>
+                            <small>Violations will appear here when detected</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="charts-section">
+                    <h3>Detection Analytics</h3>
+                    <div class="charts-grid">
+                        <div class="chart-container">
+                            <h4>Violation Types</h4>
+                            <div id="violationChart" class="chart">
+                                <div class="chart-placeholder">
+                                    <canvas id="violationTypeChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <h4>Timeline</h4>
+                            <div id="timelineChart" class="chart">
+                                <div class="chart-placeholder">
+                                    <p>Violation timeline visualization</p>
+                                    <small>Shows violations over exam duration</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detailed-stats">
+                <h3>Detailed Statistics</h3>
+                <div class="stats-details">
+                    <div class="stat-detail">
+                        <span class="detail-label">Multiple Face Detections:</span>
+                        <span id="detailMultipleFaces" class="detail-value">0</span>
+                    </div>
+                    <div class="stat-detail">
+                        <span class="detail-label">Gaze Away Incidents:</span>
+                        <span id="detailGazeAway" class="detail-value">0</span>
+                    </div>
+                    <div class="stat-detail">
+                        <span class="detail-label">Phone Usage Alerts:</span>
+                        <span id="detailPhoneUsage" class="detail-value">0</span>
+                    </div>
+                    <div class="stat-detail">
+                        <span class="detail-label">Eye Closure Events:</span>
+                        <span id="detailEyeClosure" class="detail-value">0</span>
+                    </div>
+                    <div class="stat-detail">
+                        <span class="detail-label">Audio Violations:</span>
+                        <span id="detailAudio" class="detail-value">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
